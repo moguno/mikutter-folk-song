@@ -17,6 +17,7 @@ class Gtk::KeyConfig < Gtk::Button
     @change_hook = nil
     super(*args)
     self.add(buttonlabel)
+    @long_press = ::Gtk::LongPressHelper.new
     self.signal_connect('clicked', &method(:clicked_event))
   end
 
@@ -44,6 +45,7 @@ class Gtk::KeyConfig < Gtk::Button
     box.pack_start(button)
     button.signal_connect(:key_press_event, &key_set(label))
     button.signal_connect(:button_press_event, &button_set(label))
+    button.signal_connect(:button_release_event) { @long_press.button_released }
     dialog.vbox.add(box)
     dialog.show_all
     dialog.run
@@ -59,6 +61,14 @@ class Gtk::KeyConfig < Gtk::Button
 
   def button_set(label)
     lambda{ |widget, event|
+      @long_press.button_pressed {
+        Delayer.new(:ui_response) {
+          self.keycode = Gtk.buttonname([:long_press, event.button, event.state])
+          buttonlabel.text = label.text = keycode
+          self.change_hook.call(keycode) if self.change_hook
+        }
+      }
+
       self.keycode = Gtk.buttonname([event.event_type, event.button, event.state])
       buttonlabel.text = label.text = keycode
       self.change_hook.call(keycode) if self.change_hook

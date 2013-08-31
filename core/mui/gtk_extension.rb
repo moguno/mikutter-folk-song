@@ -83,17 +83,57 @@ module Gtk
       r << 'Super + ' if (state & Gdk::Window::SUPER_MASK) != 0
       r << 'Hyper + ' if (state & Gdk::Window::HYPER_MASK) != 0
       r << "Button #{button} "
-      case type
-      when Gdk::Event::BUTTON_PRESS
-          r << 'Click'
-      when Gdk::Event::BUTTON2_PRESS
-          r << 'Double Click'
-      when Gdk::Event::BUTTON3_PRESS
-          r << 'Triple Click'
+
+      t = nil
+
+      if type.is_a?(Symbol)
+        case type
+        when :long_press
+          t = 'Long Press'
+        end
+      else
+        case type
+        when Gdk::Event::BUTTON_PRESS
+            t = 'Click'
+        when Gdk::Event::BUTTON2_PRESS
+            t = 'Double Click'
+        when Gdk::Event::BUTTON3_PRESS
+            t = 'Triple Click'
+        end
+      end 
+
+      if t
+        r << t
+        return r
       else
         return '(割り当てなし)' end
-      return r end end
+      end end
 
+  class LongPressHelper
+    PRESS_TIME = 0.5
+
+    @long_pressing = nil
+
+    def button_pressed(&proc)
+      button_released
+
+      atomic do
+        @long_pressing = Thread.new {
+          sleep PRESS_TIME
+          proc.call
+        }
+      end
+    end
+
+    def button_released
+      atomic do
+        if @long_pressing
+          @long_pressing.kill
+          @long_pressing = nil
+        end
+      end
+    end
+  end
 end
 
 =begin rdoc
@@ -258,6 +298,8 @@ module Gtk
     memoize :url_open_command
   end
 end
+
+
 
 module MUI
   Skin = ::Skin

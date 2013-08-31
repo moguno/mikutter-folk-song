@@ -155,6 +155,8 @@ module Gtk
     end
 
     def event_hooks
+      @long_press ||= ::Gtk::LongPressHelper.new
+
       last_pressed = nil
       ssc(:click, @tree){ |r, e, path, column, cell_x, cell_y|
         record = @tree.get_record(path)
@@ -166,11 +168,20 @@ module Gtk
           last_pressed = record.miracle_painter
           if e.button == 1
             last_pressed.pressed(cell_x, cell_y) end
+
+          @long_press.button_pressed {
+            Delayer.new(:ui_response) {
+              Plugin::GUI.keypress(::Gtk::buttonname([:long_press, e.button, e.state]), @tree.imaginary) 
+            }
+          }
+
           Delayer.new(:ui_response) {
             Plugin::GUI.keypress(::Gtk::buttonname([e.event_type, e.button, e.state]), @tree.imaginary) }
         end
         false }
       ssc(:button_release_event, @tree){ |r, e, path, column, cell_x, cell_y|
+        @long_press.button_released
+
         if e.button == 1 and last_pressed
           record = @tree.get_record(path)
           if record
