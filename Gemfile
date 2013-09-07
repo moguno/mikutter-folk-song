@@ -9,7 +9,7 @@ group :default do
   gem 'ruby-hmac'
   gem 'typed-array'
   gem 'delayer'
-  gem 'gettext'
+  gem 'gettext', '~> 2.0'
 end
 
 group :test do

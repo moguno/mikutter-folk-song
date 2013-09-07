@@ -1,5 +1,5 @@
 source 'https://rubygems.org'
 
 group :default do
-  gem 'gettext'
+  gem 'gettext', '~> 2.0'
 end
