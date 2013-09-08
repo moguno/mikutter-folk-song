@@ -18,7 +18,16 @@ module Plugin::Gtk
           face = command[:show_face] || command[:name] || command[:slug].to_s
           name = if defined? face.call then lambda{ |x| face.call(event) } else face end
           toolitem = ::Gtk::Button.new
-          toolitem.add(::Gtk::WebIcon.new(command[:icon], 16, 16))
+
+          icon = nil
+
+          if command[:icon].is_a?(Proc)
+            icon = command[:icon].call(*[nil, container][0, (command[:icon].arity == -1 ? 1 : command[:icon].arity)])
+          else
+            icon = command[:icon]
+          end
+
+          toolitem.add(::Gtk::WebIcon.new(icon, 16, 16))
           toolitem.tooltip(name)
           toolitem.relief = ::Gtk::RELIEF_NONE
           toolitem.ssc(:clicked){
