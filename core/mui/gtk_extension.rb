@@ -119,8 +119,10 @@ module Gtk
 
       atomic do
         @long_pressing = Thread.new {
-          sleep PRESS_TIME
-          proc.call
+          while true
+            sleep PRESS_TIME
+            proc.call
+          end
         }
       end
     end
