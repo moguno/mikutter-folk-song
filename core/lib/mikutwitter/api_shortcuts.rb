@@ -5,6 +5,8 @@ require 'addressable/uri'
 
 module MikuTwitter::APIShortcuts
 
+  RELATIONAL_DEFAULT = {count: 5000}.freeze
+
   def self.defshortcut(method_name, api, parser, key_convert = {}, defaults = {})
     if block_given?
       define_method(method_name, &yield(api, parser))
@@ -50,10 +52,10 @@ module MikuTwitter::APIShortcuts
   defcursorpager :followers_id, 'followers/ids', :paged_ids, :ids, id: :user_id
 
   def followings(args = {})
-    idlist2userlist(friends_id(args)) end
+    idlist2userlist(friends_id(RELATIONAL_DEFAULT.merge(args))) end
 
   def followers(args = {})
-    idlist2userlist(followers_id(args)) end
+    idlist2userlist(followers_id(RELATIONAL_DEFAULT.merge(args))) end
 
   def direct_messages(args = {})
     (self/:direct_messages).direct_messages({:count => 200}.merge(args)) end
@@ -202,11 +204,13 @@ module MikuTwitter::APIShortcuts
                                              {},
                                              params,
                                              { 'Host' => parsed_url.host,
-                                               'User-Agent' => "#{Environment::NAME}/#{Environment::VERSION}"})
+                                               'User-Agent' => "#{Environment::NAME}/#{Environment::VERSION}",
+                                               'accept-encoding' => "identity;q=1"})
+    proc = line_accumlator("\x0D\x0A", &chunk)
     http.request(request){ |res|
       notice "response #{url} #{res.code} #{res}"
       if res.code == '200'
-        res.read_body(&chunk)
+        res.read_body(&proc)
       end } end
 
   # APIの戻り値に、 next_cursor とかがついてて、二ページ目以降の取得がやたら面倒な

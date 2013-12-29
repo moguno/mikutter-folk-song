@@ -77,7 +77,6 @@ class ::Gdk::MiraclePainter
     now = Time.now.to_i
     there = message[:created].to_i
     diff = (there - now).abs
-    time_arg = nil
     label = case diff
             when 0
               Plugin[:display_requirements]._("今")

@@ -25,10 +25,16 @@ class GLib::Instantiatable
           proc.call(*args) end } end end
   alias ssc safety_signal_connect
 
-  alias signal_connect_unrecording signal_connect
-  def signal_connect(name, *other_args, &proc)
-    signal_connect_unrecording(name, *other_args, &__track(&proc))
-  end
+  # safety_signal_connect を、イベントが発生した最初の一度だけ呼ぶ
+  def safety_signal_connect_atonce(signal, *related, &proc)
+    called = false
+    sid = ssc(signal, *related) { |*args|
+      unless called
+        called = true
+        signal_handler_disconnect(sid)
+        proc.call(args) end }
+    sid end
+  alias ssc_atonce safety_signal_connect_atonce
 
   private
   def __track(&proc)
@@ -211,6 +217,11 @@ class Gtk::Clipboard
   def self.copy(t)
     Gtk::Clipboard.get(Gdk::Atom.intern('CLIPBOARD', true)).text = t
   end
+
+  # クリップボードから文字列を取得する
+  def self.paste
+    Gtk::Clipboard.get(Gdk::Atom.intern('CLIPBOARD', true)).wait_for_text
+  end
 end
 
 class Gtk::Dialog
@@ -228,7 +239,7 @@ class Gtk::Dialog
   end
 
   # Yes,Noの二択の質問を表示する。
-  # OKボタンが押されたらtrue、それ以外が押されたらfalseを返す
+  # YESボタンが押されたらtrue、それ以外が押されたらfalseを返す
   def self.confirm(message)
     Gtk::Lock.synchronize{
       dialog = Gtk::MessageDialog.new(nil,

@@ -3,6 +3,9 @@
 require 'gtk2'
 
 Plugin.create :list do
+  defevent :list_created, priority: :routine_passive, prototype: [Service, UserLists]
+  defevent :list_destroy, priority: :routine_passive, prototype: [Service, Array]
+
   crawl_count = 0
   this = self
 
@@ -50,7 +53,17 @@ Plugin.create :list do
         if list.related?(message)
           timeline(slug) << message end } } end
 
-  # filter stream で、タイムラインを表示しているユーザをフォロー
+  on_service_registered do |service|
+    if service
+      fetch_list_of_service(service, true) end end
+
+  on_service_destroyed do |service|
+    service.lists(cache: true, user: service.user_obj).next{ |lists|
+      Plugin.call(:list_destroy, service, lists) if lists
+    }.terminate
+  end
+
+  # FILTER stream で、タイムラインを表示しているユーザをフォロー
   filter_filter_stream_follow do |users|
     [timelines.values.inject(users){ |r, list| r.merge(list.member) }] end
 
@@ -150,9 +163,6 @@ Plugin.create :list do
     if visible_lists.include?(list[:id])
       store(:visible_lists, visible_lists - [list[:id]])
     end
-    visible_list_obj = at(:visible_list_obj, {}).melt
-    visible_list_obj.delete(list[:id])
-    store(:visible_list_obj, visible_list_obj)
     self end
 
   # _list_ の表示可否状態を _visibility_ にして、実際に表示/非表示を切り替える
@@ -194,8 +204,8 @@ Plugin.create :list do
   def set_available_lists(newlist)
     created = newlist - available_lists
     deleted = available_lists - newlist
-    Plugin.call(:list_created, Service.primary, created.freeze) if not created.empty?
-    Plugin.call(:list_destroy, Service.primary, deleted.freeze) if not deleted.empty?
+    Plugin.call(:list_created, Service.primary, UserLists.new(created)) if not created.empty?
+    Plugin.call(:list_destroy, Service.primary, UserLists.new(deleted)) if not deleted.empty?
     @available_lists = UserLists.new(newlist).freeze
     Plugin.call(:list_data, Service.primary, @available_lists) if not(created.empty? and deleted.empty?)
     @available_lists end
@@ -238,12 +248,6 @@ Plugin.create :list do
       set_icon Skin.get("list.png")
       timeline slug end
     list_modify_member(list, true)
-    visible_list_obj = at(:visible_list_obj, {}).melt
-    if not defined? visible_list_obj[list[:id]]
-      visible_list_obj[list[:id]] = list.to_hash
-      visible_list_obj[list[:id]][:user] = list[:user].to_hash
-      visible_list_obj[list[:id]].delete(:member)
-      store(:visible_list_obj, visible_list_obj) end
     self end
 
   # _list_ のためのタブを閉じる。タブがない場合は何もしない。
@@ -260,23 +264,10 @@ Plugin.create :list do
       tab(slug).destroy end
     self end
 
-  Delayer.new{
-    fetch_list_of_service(Service.primary, true) }
-
-  ->(visible_lists) {
-    visible_list_ids.each{ |list_id|
-      begin
-        if defined? visible_lists[list_id]
-          list = visible_lists[list_id].melt
-          list[:user] = User.new_ifnecessary(list[:user])
-          list[:member] = Set.new
-          userlist = UserList.new_ifnecessary(list)
-          tab_open(userlist)
-        end
-      rescue => e
-        error "list redume failed"
-        error e end }
-  }.(at(:visible_list_obj, {}))
+  ->(service) {
+    if service
+      Delayer.new{
+        fetch_list_of_service(service, true) } end }.(Service.primary)
 
   class IDs < TypedArray(Integer); end
 

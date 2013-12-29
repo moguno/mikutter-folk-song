@@ -299,6 +299,11 @@ Plugin.create :gtk do
   on_gui_tab_change_icon do |i_tab|
     tab_update_icon(i_tab) end
 
+  on_tab_toolbar_rewind do |i_tab_toolbar|
+    tab_toolbar = widgetof(i_tab_toolbar)
+    if tab_toolbar
+      tab_toolbar.set_button end end
+
   on_gui_contextmenu do |event, contextmenu|
     widget = widgetof(event.widget)
     if widget
@@ -483,7 +488,13 @@ Plugin.create :gtk do
     return false if not i_pane
     pane = widgetof(i_pane)
     return false if not pane
+    is_tab = i_tab.is_a?(Plugin::GUI::Tab)
+    is_parmatab = is_tab and not(i_tab.temporary_tab?)
+    has_child = is_parmatab and not(i_tab.children.any?{ |child|
+                                      not child.is_a? Plugin::GUI::TabToolbar })
     notice "widget_join_tab: #{widget} join #{i_tab}"
+    if has_child
+      window_order_save_request(i_pane.parent) end
     container_index = pane.get_tab_pos_by_tab(tab)
     if container_index
       container = pane.get_nth_page(container_index)

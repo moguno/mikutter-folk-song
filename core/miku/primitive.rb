@@ -2,10 +2,12 @@
 require_relative 'atom'
 require_relative 'error'
 require_relative 'macro'
+require_relative 'to_ruby'
 
 module MIKU
   class Primitive
     include Atom
+    include ToRuby
 
     def initialize(func)
       @func = func.to_sym
@@ -53,7 +55,7 @@ module MIKU
         elsif n.car == :comma_at then
           list = eval(symtable, n[1])
           raise ExceptionDelegator.new(',@がリスト以外に対して適用されました', ArgumentError) if not list.is_a?(List)
-          result.concat(list) if list
+          result.concat(list.to_a) if list
         else
           result << backquote(symtable, n)
         end
@@ -121,8 +123,9 @@ module MIKU
     end
 
     def macro_expand_all(symtable, sexp)
+      sexp = eval(symtable, sexp)
       if sexp.is_a? List
-        expanded = macro_expand(symtable, sexp)
+        expanded = macro_expand_ne(symtable, sexp)
         if expanded.is_a? List
           expanded.map{|node|
             macro_expand_all_ne(symtable, node) }
@@ -149,12 +152,23 @@ module MIKU
                 else
                   eval(symtable, sexp.car) end
         if macro.is_a?(Macro)
-          macro.macro_expand(*sexp.cdr.to_a) end
+          macro.macro_expand(*sexp.cdr.to_a)
+        else
+          sexp end
       else
         sexp end end
 
+    def to_ruby(symtable, sexp)
+      MIKU::ToRuby.to_ruby(macro_expand_all(symtable, sexp))
+    end
+
+    def to_ruby_ne(symtable, sexp)
+      MIKU::ToRuby.to_ruby(macro_expand_all_ne(symtable, sexp))
+    end
+
     def macro_expand(symtable, sexp)
-      macro_expand_ne(symtable, eval(symtable, sexp)) end
+      macro_expand_ne(symtable, eval(symtable, sexp))
+    end
 
     def negi(parenttable, alist, *body)
       # body = body.map{ |node| macro_expand(parenttable, node) }

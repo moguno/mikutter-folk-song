@@ -2,6 +2,7 @@
 
 require "gtk2"
 require File.expand_path(File.join(File.dirname(__FILE__), 'toolbar_generator'))
+require File.expand_path(File.join(File.dirname(__FILE__), 'account_box'))
 
 class Gtk::MikutterWindow < Gtk::Window
 
@@ -14,17 +15,36 @@ class Gtk::MikutterWindow < Gtk::Window
     @plugin = plugin
     @container = Gtk::VBox.new(false, 0)
     @panes = Gtk::HBox.new(true, 0)
+    account = Gtk::AccountBox.new
+    header = Gtk::HBox.new(false, 0)
     @postboxes = Gtk::VBox.new(false, 0)
-    add(@container.closeup(@postboxes).pack_start(@panes).closeup(create_statusbar))
+    add @container.
+      closeup(header.
+              closeup(account).
+              pack_start(@postboxes)).
+      pack_start(@panes).
+      closeup(create_statusbar)
+    Plugin[:gtk].on_service_registered do |service|
+      refresh end
+    Plugin[:gtk].on_service_destroyed do |service|
+      refresh end
   end
 
   def add_postbox(i_postbox)
-    postbox = Gtk::PostBox.new(i_postbox.poster || Service.primary, {postboxstorage: @postboxes, delegate_other: true}.merge(i_postbox.options||{}))
+    postbox = Gtk::PostBox.new(i_postbox.poster || Gtk::PostBox::PostToPrimaryService.new, {postboxstorage: @postboxes, delegate_other: true}.merge(i_postbox.options||{}))
     @postboxes.pack_start(postbox)
     set_focus(postbox.post)
-    postbox.show_all end
+    postbox.no_show_all = false
+    postbox.show_all if not Service.to_a.empty?
+    postbox end
 
   private
+
+  def refresh
+    if Service.to_a.empty?
+      @postboxes.children.each(&:hide)
+    else
+      @postboxes.children.each(&:show_all) end end
 
   # ステータスバーを返す
   # ==== Return

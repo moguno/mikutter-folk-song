@@ -38,14 +38,16 @@ module Plugin::GUI::Widget
   # ==== Return
   # self
   def destroy
-    Plugin.call(:gui_destroy, self) if not destroyed?
-    self.class.cuscaded.delete(slug)
-    @destroy = true
-    if @unload_hook and self.plugin
-      plugin = Plugin.instance(self.plugin)
-      if plugin
-        notice "detach unload hook. plugin:#{plugin}, widget: #{self}"
-        plugin.detach(:unload, @unload_hook) end end
+    if not destroyed?
+      notice "gui: Plugin::GUI::Widget#destroy: #{self.inspect}"
+      Plugin.call(:gui_destroy, self)
+      self.class.cuscaded.delete(slug)
+      @destroy = true
+      if @unload_hook and self.plugin
+        plugin = Plugin.instance(self.plugin)
+        if plugin
+          notice "detach unload hook. plugin:#{plugin}, widget: #{self}"
+          plugin.detach(:unload, @unload_hook) end end end
     self end
 
   # ツールキット上で、ウィジェットが削除されているかどうかを調べる。
