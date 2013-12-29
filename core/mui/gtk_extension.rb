@@ -312,8 +312,6 @@ module Gtk
   end
 end
 
-
-
 module MUI
   Skin = ::Skin
 end
